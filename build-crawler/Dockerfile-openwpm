@@ -1,0 +1,75 @@
+#=============================================================
+# Dockerfile for OpenWPM
+# See README.md for build & use instructions
+#=============================================================
+
+FROM ubuntu:18.04
+
+#=============================================================
+# Packages required for container setup
+#=============================================================
+
+RUN apt-get -qqy update --no-install-recommends && \
+    apt-get -qqy install sudo python3-pip && \
+    sudo mkdir /opt/OpenWPM/
+# openssh-server  # libmysqlclient-dev \
+
+
+#=============================================================
+# Copy OpenWPM source
+#=============================================================
+COPY OpenWPM/automation /opt/OpenWPM/automation/
+COPY OpenWPM/firefox-bin /opt/OpenWPM/firefox-bin/
+COPY OpenWPM/requirements.txt /opt/OpenWPM/
+COPY OpenWPM/VERSION /opt/OpenWPM/
+COPY OpenWPM/install.sh /opt/OpenWPM/
+COPY hb_server /opt/OpenWPM/hb_server
+COPY docker_api.py /opt/OpenWPM/
+COPY crawl_stub.py /opt/OpenWPM/
+COPY baseline_sites.json /opt/OpenWPM/
+COPY hb_server/extension/web-ext-artifacts/header_bidding-1.0.3-an+fx.xpi /opt/OpenWPM/DeployBrowsers/firefox_extensions/hb_collector.xpi
+
+#=============================================================
+# Authorize SSH Host
+#=============================================================
+# ARG ssh_prv_key
+# ARG ssh_pub_key
+# ARG config
+# RUN mkdir -p -m 0600 /home/user/.ssh
+#     # ssh-keyscan skaro > /home/user/.ssh/known_hosts
+
+# # Add the keys and set permissions
+# RUN echo "$ssh_prv_key" > /home/user/.ssh/id_rsa && \
+#     echo "$ssh_pub_key" > /home/user/.ssh/id_rsa.pub && \
+#     echo "$config" > /home/user/.ssh/config && \
+#     chmod 600 /home/user/.ssh/id_rsa && \
+#     chmod 600 /home/user/.ssh/id_rsa.pub
+# COPY config/config /home/user/.ssh/config
+#=============================================================
+# Install requirements for OpenWPM
+#=============================================================
+
+RUN useradd user \
+         --shell /bin/bash  \
+         --create-home \
+  && usermod -a -G sudo user \
+  && echo 'ALL ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers \
+  && echo 'user:secret' | chpasswd
+
+USER user
+ENV PATH="/home/user/.local/bin:${PATH}"
+
+RUN sudo chown -R user:user /home/user && \
+    alias ll='ls -al' && \
+    sudo chown -R user:user /opt/OpenWPM/ && \
+    sudo mkdir /home/user/Desktop && \
+    sudo mkdir /home/user/Desktop/crawls && \
+    sudo chown -R user:user /home/user && \
+    sudo chmod 777 -R /home/user/Desktop/ && \
+    cd /opt/OpenWPM/ \
+    && ./install.sh --no-flash
+# RUN sudo mkdir -p /home/user/Desktop/crawls
+# RUN sudo chmod 777 -R /home/user
+# RUN sudo chown -R user:user /home/user
+# RUN cd /opt/OpenWPM/ \
+#      && sudo ./install.sh --no-flash

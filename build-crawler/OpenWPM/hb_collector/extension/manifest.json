@@ -1,0 +1,29 @@
+{
+	"name" : "Header bidding",
+	"version" : "1.0.2",
+	"description" : "Tapping on header bidding",
+	"permissions" : ["storage",
+                     "cookies",
+                     "<all_urls>",
+                     "tabs",
+                     "activeTab", 
+                     "webRequest", 
+                     "webRequestBlocking", 
+                     "http://*/*", 
+                     "https://*/*"],
+	"background" : {
+		"scripts" : ["bidderPatterns.js",
+                     "libs/jquery-3.2.1.min.js",
+                     "background.js"]
+	},
+    "content_scripts": [
+        {
+            "matches": ["http://*/*","https://*/*"],
+            "js": ["communicator.js"],
+            "run_at": "document_start"
+        }
+    ],
+    "web_accessible_resources": ["content.js"],
+	"manifest_version" : 2
+
+}

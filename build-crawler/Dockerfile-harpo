@@ -1,0 +1,10 @@
+#=============================================================
+# Dockerfile for OpenWPM
+# See README.md for build & use instructions
+#=============================================================
+
+FROM openwpm:latest
+COPY run_ml_crawl.py /opt/OpenWPM/
+RUN sudo pip3 install adblockparser html2text
+COPY easylist.txt /opt/OpenWPM/
+COPY easyprivacy.txt /opt/OpenWPM/

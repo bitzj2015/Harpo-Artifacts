@@ -1,0 +1,49 @@
+{
+    "browser_params":
+    {
+       
+            "extension_enabled": true,
+            "cookie_instrument": true,
+            "js_instrument": true,
+            "js_instrument_modules": "",
+            "http_instrument": true,
+            "navigation_instrument": true,
+            "save_content": false,
+
+            "random_attributes": false,
+            "bot_mitigation": true,
+            "disable_flash": true,
+            "profile_tar": null,
+            "profile_archive_dir": null,
+            "headless": true,
+            "browser": "firefox",
+            "prefs": {},
+
+            "tp_cookies": "always",
+            "donottrack": false,
+            "disconnect": false,
+            "ghostery": false,
+            "https-everywhere": false,
+            "adblock-plus": false,
+            "ublock-origin": false,
+            "hb_collector":true,
+            "tracking-protection": false
+    },
+
+    "manager_params":
+    {
+        
+        "data_directory": "",
+        "log_directory": "/mnt/hgfs/data_sets/GAP/baseline_crawl/",
+        "dump_profile_root": "",
+        "output_format": "local",
+        "database_name": "crawl-data.sqlite",
+        "log_file": "openwpm.log",
+        "failure_limit": null,
+        "testing": false,
+        "s3_bucket": null,
+        "s3_directory": null,
+        "num_browsers":10
+    }
+    
+}
