@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="bulma/css/bulma.css">
+    <link rel="stylesheet" href="bulma-switch/dist/css/bulma-switch.min.css">
+    <style>
+      .heading {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container is-fluid">
+      <section class="hero">
+        <div class="hero-body">
+          <nav class="level">
+            <!-- Left side -->
+            <div class="level-left">
+              <div class="level-item">
+                <div class="subtitle">
+                  <p>Harpo Extension Settings</p>
+                </div>
+              </div>
+            </div>
+          
+            <!-- Right side -->
+            <div class="level-right">
+              <div class="level-item">
+                <button class="button" id="categoryButton" style="display: none;">Select Categories</button>
+                <button class="button" id="digitalFootprintButton">View Digital Footprint</button>
+              </div>
+            </div>
+          </nav>
+        </div>
+      </section>
+
+      <section class= "hero" style="border-top: 2px solid #f5f5f5;">
+        <div class="hero-body">
+
+          <div id="categoryPane">
+            <article id="reconnectMessage" class="message is-danger" style="display: none">
+              <div class="message-body">
+                <div class="level">
+                  <div class="level-left">
+                    <div class="level-item">
+                      <p class="level-item">Failed to connect to backend. Would you like reconnect?</p>
+                      <button class="button is-text" id="reconnectButton">Reconnect</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+  
+            <article id="updateMessage" class="message is-info" style="display: none">
+              <div class="message-body">
+                <div class="level">
+                  <div class="level-left">
+                    <div class="level-item">
+                      <p class="level-item">Preferences updated successfully</p>
+                    </div>
+                  </div>
+                  <div class="level-right">
+                    <button class="delete level-item"></button>
+                  </div>
+                </div>
+              </div>
+            </article>
+  
+            <div class="content">
+              <div class="heading">
+                <p>Obfuscation URL Categories</p>
+              </div>
+            </div>
+  
+            <div class="content">            
+              <ul id="categoryForm" style="list-style-type:none;">
+              </ul>
+            </div>
+  
+            <div class="content">
+              <button class="button is-rounded" id="updateButton">Update Preferences</button>
+            </div>
+          </div>
+
+          <div id="digitalFootprintPane" style="display: none">
+            <table class="table is-fullwidth">
+              <thead>
+                <tr>
+                  <th>Interest Segments</th>
+                </tr>
+              </thead>
+              <tbody id="interestSegmentTableBody">
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

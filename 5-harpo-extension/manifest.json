@@ -1,0 +1,47 @@
+{
+
+    "manifest_version": 2,
+    "name": "harpo",
+    "version": "1.0",
+  
+    "description": "Harpo Implementation.",
+    "homepage_url": "https://github.com/mdn/webextensions-examples/tree/master/beastify",
+    "icons": {
+      "48": "icons/harpo-48.png"
+    },
+
+    "background": {
+      "scripts": ["js/hidden_tabs.js", "js/rl_agent.js", "js/poisson.js", "js/background.js"]
+    },
+  
+    "content_scripts": [
+      {
+        "matches": [
+          "http://*/*",
+          "https://*/*"
+        ],
+        "js": ["js/content.js"]
+      }
+    ],
+
+    "permissions": [
+      "activeTab",
+      "nativeMessaging",
+      "webNavigation",
+      "tabs",
+      "tabHide",
+      "<all_urls>"
+    ],
+
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "rl_agent@example.org",
+        "strict_min_version": "50.0"
+      }
+    },
+
+    "browser_action": {
+      "default_icon": "icons/harpo-48.png",
+      "default_title": "Harpo Extension"
+    }
+  }

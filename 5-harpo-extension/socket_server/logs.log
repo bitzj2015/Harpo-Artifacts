@@ -1,0 +1,24 @@
+INFO:gensim.utils:loading Doc2Vec object from ./model_new_100.bin
+INFO:gensim.utils:loading vocabulary recursively from ./model_new_100.bin.vocabulary.* with mmap=None
+INFO:gensim.utils:loading trainables recursively from ./model_new_100.bin.trainables.* with mmap=None
+INFO:gensim.utils:loading wv recursively from ./model_new_100.bin.wv.* with mmap=None
+INFO:gensim.utils:loading docvecs recursively from ./model_new_100.bin.docvecs.* with mmap=None
+INFO:gensim.utils:loaded ./model_new_100.bin
+INFO:gensim.utils:loading Doc2Vec object from ./model_new_100.bin
+INFO:gensim.utils:loading vocabulary recursively from ./model_new_100.bin.vocabulary.* with mmap=None
+INFO:gensim.utils:loading trainables recursively from ./model_new_100.bin.trainables.* with mmap=None
+INFO:gensim.utils:loading wv recursively from ./model_new_100.bin.wv.* with mmap=None
+INFO:gensim.utils:loading docvecs recursively from ./model_new_100.bin.docvecs.* with mmap=None
+INFO:gensim.utils:loaded ./model_new_100.bin
+INFO:gensim.utils:loading Doc2Vec object from ./model_new_100.bin
+INFO:gensim.utils:loading vocabulary recursively from ./model_new_100.bin.vocabulary.* with mmap=None
+INFO:gensim.utils:loading trainables recursively from ./model_new_100.bin.trainables.* with mmap=None
+INFO:gensim.utils:loading wv recursively from ./model_new_100.bin.wv.* with mmap=None
+INFO:gensim.utils:loading docvecs recursively from ./model_new_100.bin.docvecs.* with mmap=None
+INFO:gensim.utils:loaded ./model_new_100.bin
+INFO:gensim.utils:loading Doc2Vec object from ./model_new_100.bin
+INFO:gensim.utils:loading vocabulary recursively from ./model_new_100.bin.vocabulary.* with mmap=None
+INFO:gensim.utils:loading trainables recursively from ./model_new_100.bin.trainables.* with mmap=None
+INFO:gensim.utils:loading wv recursively from ./model_new_100.bin.wv.* with mmap=None
+INFO:gensim.utils:loading docvecs recursively from ./model_new_100.bin.docvecs.* with mmap=None
+INFO:gensim.utils:loaded ./model_new_100.bin
