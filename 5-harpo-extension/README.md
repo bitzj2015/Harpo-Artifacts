@@ -36,3 +36,6 @@ python socket_server.py
 ### Front End
 #### To install extension in Firefox
 1. Load the manifest.json file in the Firefox "about:debugging" page
+
+### Download resources
+1. Download all models [here](https://drive.google.com/drive/folders/1DnMz4_hBFQ_Cq-fbjysd_Q-dGzw72yvr?usp=sharing)

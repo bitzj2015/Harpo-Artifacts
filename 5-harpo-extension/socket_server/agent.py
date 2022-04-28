@@ -3,10 +3,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 from copy import deepcopy
-from obf_url_utils import load_disabled, choose_max_on_constraint
-
-torch.autograd.set_detect_anomaly(True)
+#from utils import sample_url
 
 BIAS = True
 
@@ -50,8 +49,12 @@ class A3Clstm(torch.nn.Module):
 
         self.apply(weights_init)
         self.actor_linear.weight_data = norm_col_init(self.actor_linear.weight.data, 0.01)
+        # self.actor_linear.bias.data.fill_(0)
         self.critic_linear.weight_data = norm_col_init(self.critic_linear.weight.data, 0.01)
+        # self.critic_linear.bias.data.fill_(0)
 
+        # self.lstm.bias_ih.data.fill_(0)
+        # self.lstm.bias_hh.data.fill_(0)
         self.train()
 
     def forward(self, inputs, is_training=False):
@@ -69,12 +72,14 @@ class A3Clstm(torch.nn.Module):
 
         return self.critic_linear(x), self.actor_linear(x), hx, cx
 
-# what optimizer should I use?
+
 class Agent(object):
-    def __init__(self, model, optimizer, simu_args):
+    def __init__(self, model, optimizer, env, env_args, simu_args, state):
         self.model = model
+        self.env = env
+        self.env_args = env_args
         self.simu_args = simu_args
-        self.state = torch.zeros(1,1,20,300)
+        self.state = state
         if self.simu_args.use_cuda:
             self.hx = torch.zeros(self.simu_args.num_browsers, 256).cuda()
             self.cx = torch.zeros(self.simu_args.num_browsers, 256).cuda()
@@ -83,6 +88,8 @@ class Agent(object):
             self.cx = torch.zeros(self.simu_args.num_browsers, 256)
         self.step_count = 0
         self.global_step_count = 0
+        self.url_ids = []
+        self.urls = []
         self.values = []
         self.log_probs = []
         self.rewards = []
@@ -100,40 +107,47 @@ class Agent(object):
         except:
             pass
 
-    def action_train(self, html_doc_vecs, Terminate=False):
+    def action_train(self, with_ad=False, Terminate=False):
         if not Terminate:
             self.terminate = Terminate
-
-            # make prediction using model
-            self.state = html_doc_vecs
-            value, logit, self.hx, self.cx = self.model((self.state, (self.hx, self.cx)), True)
-
+            value, logit, self.hx, self.cx = self.model((self.state, (self.hx, self.cx)),True)
             self.values.append(value.squeeze(1))
             prob = F.softmax(logit, 1)
             log_prob = F.log_softmax(logit, 1)
             entropy = -(log_prob * prob).sum(1)
             self.entropies.append(entropy)
             action = prob.multinomial(num_samples=1).data
+            # print(self.state.view(-1))
             print(action.view(-1))
             log_prob = log_prob.gather(1, action)
             action_list = list(action.squeeze(1).cpu().numpy().astype("int"))
             self.log_probs.append(log_prob.squeeze(1))
+            self.url_ids.append(action_list)
+            action_url = [
+                sample_url(
+                    url_set=self.env_args.obfuscation_url, 
+                    url_set_index=self.env_args.obfuscation_url_index, 
+                    cate_list=[url_id]
+                ) for url_id in action_list
 
-            ### choose URLs here
-            disabled=load_disabled("./category_data.txt")
+                ] 
 
-            # get the top vectors (the number of disabled categories + 1)
-            # in case all of the top vectors are disabled
-            max_list=torch.topk(logit,len(disabled)+1).indices.tolist()
+            self.urls.append(action_url)
+            state, reward, _, _ = self.env.step(action_url, cur_url_type=1, cur_url_cate=action_list, crawling=False)
+            
 
-            url_cat, action_url = choose_max_on_constraint(max_list[0], disabled)
-
+            self.state = torch.from_numpy(np.stack(state, axis=0).reshape(self.simu_args.num_browsers,1,-1,self.simu_args.embedding_dim))
+            self.rewards.append(torch.Tensor(deepcopy(reward)))
+            if self.simu_args.use_cuda:
+                self.state = self.state.cuda()
             self.step_count += 1
             self.global_step_count += 1
-
-            return url_cat, action_url
         else:
+            _, _, self.reward_vec, self.reward_vec_base = self.env.step(None, cur_url_type=1, cur_url_cate=None, crawling=True)
+            # print(reward, sum(reward))
             if self.simu_args.diff_reward:
+                # if len(self.rewards) > 0:
+                #     self.rewards[-1] = torch.Tensor(deepcopy(reward))
                 tmp = deepcopy(self.rewards)
                 for i in range(len(self.rewards)-1):
                     self.rewards[i+1] = tmp[i+1] - tmp[i]
@@ -143,12 +157,75 @@ class Agent(object):
             self.values.append(f_value.squeeze(1))
             self.step_count = 0
 
-            print("n+1 call made to agent train action")
+    def action_test(self, with_ad=False, Terminate=False):
+        if not Terminate:
+            self.terminate = Terminate
+            action_list = []
+            action_url = []
+            tmp_count = {}
+            self.local_mask = [[1 for _ in range(self.simu_args.action_dim)] for _ in range(self.simu_args.num_browsers)]
 
-    def update(self, rewards, GAMMA, T, retrain=True):
-        # for testing so the code below doesn't have to be rewritten right now
-        self.rewards = rewards
+            for i in range(self.state.shape[0]):
+                _, logit, self.hx[i:i+1], self.cx[i:i+1] = self.model((self.state[i:i+1], (self.hx[i:i+1], self.cx[i:i+1])),True)
+                
+                prob = F.softmax(logit, 1)
+                log_prob = F.log_softmax(logit, 1)
+                prob_ = prob * torch.Tensor(self.mask[i:i+1]) # * torch.Tensor(self.local_mask[i:i+1])
+                action = prob.multinomial(num_samples=1).data
+                log_prob = log_prob.gather(1, action)
+                url_id = list(action.squeeze(1).cpu().numpy().astype("int"))[0]
+                url = sample_url(
+                    url_set=self.env_args.obfuscation_url, 
+                    url_set_index=self.env_args.obfuscation_url_index, 
+                    cate_list=[url_id]
+                )
+                
+                if url_id not in tmp_count.keys():
+                    tmp_count[url_id] = 0
+                tmp_count[url_id] += 1
+                if url_id not in self.count.keys():
+                    self.count[url_id] = 0
+                self.count[url_id] += 1
+                self.mask[i][url_id] = 0
+                for key in self.count.keys():
+                    if self.count[key] >= 60:
+                        for j in range(len(self.mask)):
+                            self.mask[j][key] = 0
+                for key in tmp_count.keys():
+                    if tmp_count[key] >= 30:
+                        for j in range(len(self.mask)-i-1):
+                            self.local_mask[j+i+1][key] = 0
+                action_list.append(url_id)
+                action_url.append(url)
+            print(action_list)
+            self.action_id = action_list
+            state, reward, _, _ = self.env.step(action_url, cur_url_type=1, cur_url_cate=action_list, crawling=False)         
 
+            self.state = torch.from_numpy(np.stack(state, axis=0).reshape(self.simu_args.num_browsers,1,-1,self.simu_args.embedding_dim))
+            self.rewards.append(torch.Tensor(deepcopy(reward)))
+            if self.simu_args.use_cuda:
+                self.state = self.state.cuda()
+            self.step_count += 1
+            self.global_step_count += 1
+        else:
+            _, _, self.reward_vec, self.reward_vec_base = self.env.step(None, cur_url_type=1, cur_url_cate=None, crawling=True)
+            # print(reward, sum(reward))
+            if self.simu_args.diff_reward:
+                # if len(self.rewards) > 0:
+                #     self.rewards[-1] = torch.Tensor(deepcopy(reward))
+                tmp = deepcopy(self.rewards)
+                for i in range(len(self.rewards)-1):
+                    self.rewards[i+1] = tmp[i+1] - tmp[i]
+            f_value, _, _, _ = self.model((self.state, (self.hx, self.cx)), True)
+            self.hx = self.hx.detach()
+            self.cx = self.cx.detach()
+            self.values.append(f_value.squeeze(1))
+            self.step_count = 0
+
+    def save_param(self, ep):
+        torch.save(self.model.state_dict(),self.simu_args.agent_path[:-4]+"_{}.pkl".format(ep))
+
+    def update(self, GAMMA, T, retrain=True):
         if retrain:
             self.model.load_state_dict(torch.load(self.simu_args.agent_path))
         policy_loss = 0
@@ -163,15 +240,12 @@ class Agent(object):
             self.rewards = [self.rewards[i] for i in range(len(self.rewards))]
             self.values = [self.values[i] for i in range(len(self.values))]
         R = self.values[-1]
-
         for i in reversed(range(len(self.rewards))):
             avg_R += self.rewards[i]
             R = GAMMA * R + self.rewards[i]
             advantage = R - self.values[i]
             value_loss = value_loss + 0.5 * advantage.pow(2)
             # Generalized Advantage Estimataion
-
-            # ask Jiang about this
             delta_t = self.rewards[i] + GAMMA * self.values[i + 1].data - \
                 self.values[i].data
             gae = gae * GAMMA * T + delta_t
@@ -187,6 +261,8 @@ class Agent(object):
         avg_R.sum(0).cpu().numpy()/self.simu_args.num_browsers / len(self.rewards)
 
     def clear_actions(self):
+        self.url_ids = []
+        self.urls = []
         self.values = []
         self.log_probs = []
         self.rewards = []

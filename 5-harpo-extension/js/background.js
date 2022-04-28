@@ -1,7 +1,7 @@
 /**************** Define constants and functions ****************/
 const visitTimeout = 20000;
 const delta = 0.75;
-const rl_agent_url = 'ws://0.0.0.0:8765';
+const rl_agent_url = 'ws://127.0.0.1:8765';
 const alpha = 0.5;
 const timePeriod = 1.0; // minute time period is one minute
 const reconnectTimeout = 5000; // in ms
@@ -138,10 +138,6 @@ Listen for the response message from the rl_agent (an obfuscation url), and visi
 */
 rl_agent.addMessageListener('url_request', function(data) {
   openHiddenTabs(data);
-
-  colIntSeg().then((json) => {
-    rl_agent.sendIntSegUpdate(json, data['uuid']);
-  });
 })
 
 rl_agent.addMessageListener('send_page_info', function(data) {

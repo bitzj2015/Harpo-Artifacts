@@ -1,28 +1,21 @@
 import os
 import sys
+import json
 import glob
 import time
-import uuid
-import json
 import numpy
 import torch
-import torch.optim as optim
 import struct
 import html2text
-from collections import OrderedDict
 from gensim.models.doc2vec import Doc2Vec
 from simu_segs_exp import SimuArgs
-from agent import A3Clstm, Agent
+from agent import A3Clstm
+from random import choice
 
-# constants
-T = 1
-GAMMA = 0.99
+hx_prev = torch.zeros(1, 256)
+cx_prev = torch.zeros(1, 256)
 
-# number of interest segment (url, reward) tuples to collect before updating model
-NUM_REWARDS = 3
-
-simu_args = SimuArgs(
-    max_words=30,
+simu_args = SimuArgs(max_words=30,
     max_len=20,
     batch_size=1,
     max_epoch=10,
@@ -32,9 +25,9 @@ simu_args = SimuArgs(
     kernel_size=[3,4,5],
     output_size=2, dropout=0.0,
     use_cuda=False,
-	simu_path='./simu',
-	agent_path="./rl_agent.pkl",
-    param_path="./param",
+	simu_path='../simu',
+	agent_path="../param/rl_agent.pkl",
+    param_path="../param",
     action_dim=184,
     num_browsers=1,
     num_real_url=None,
@@ -42,72 +35,77 @@ simu_args = SimuArgs(
     metric='extension'
 )
 
-# initalize model
-
 model = A3Clstm(simu_args)
-
-# what does this line do?
 model.load_state_dict(torch.load(simu_args.agent_path))
-model.train()
-# initalize training pipeline
-optimizer = optim.Adam(model.parameters(), lr=simu_args.lr)
-agent = Agent(model, optimizer, simu_args)
-
+with open("../param/product_url_100.json") as f:
+    obfuscation_url_set = json.load(f)
+    obfuscation_url_cats = list(obfuscation_url_set.keys())
 buffer=[]
-
-# interest segment history related
-prev_interest_segments = []
-model_rewards = OrderedDict()
 
 def latest_doc2vec():
     print("latest_doc2vec reached")
-    files = glob.glob("*.bin")
+    files = glob.glob("../param/*.bin")
     if(len(files)==1):
         print("latest_doc2vec finished")
-        return Doc2Vec.load("./model_new_100.bin")
+        return Doc2Vec.load("../param/model_new_100.bin")
     else:
         files.remove("model_new_100.bin")
         files.sort()
         print("latest_doc2vec finished")
-        return Doc2Vec.load("./"+files[-1])
+        return Doc2Vec.load("../param/"+files[-1])
 
-# def harpo_api_old(history):
-#     print("harpo_api reached")
-#     disabled=load_disabled("./category_data.txt")
-#     doc2vec = latest_doc2vec()
-#     tensor = torch.tensor([doc2vec.infer_vector(each["html"].split(" ")) for each in history])
-#     tensor = torch.reshape(tensor,(1,1,20,300))
-#     # only need to call the model one time
-#     # hx and cx should passed to the model() call, from the previous call
-#     # initially hx and cx (global variables) should be set using torch.zeros(1, 256)
-
-#     for count in range(0,20):
-#         temp=tensor[:,:,count:count+1,0:256]
-#         temp=torch.reshape(temp, (1,256))
-#         res = model((tensor, (temp, temp)))
-
-#     # doc2vec.save("./{}.bin".format(time.time()))
-#     # idx = res[1].argmax().item() # gives the largest vector
-
-#     # capture hx and cx from the model() response and store them for the next call
-
-#     max_list=torch.topk(res[1],len(disabled)+1).indices.tolist()
-#     # len(disabled) + 1 in case all of the k selected are disabled categories
-#     print("harpo_api finished")
-#     return choose_max_on_constraint(max_list[0],disabled)
-
-def harpo_api(history, Terminate=False):
+def harpo_api_old(history):
     print("harpo_api reached")
+    disabled=load_disabled("../param/category_data.txt")
     doc2vec = latest_doc2vec()
     tensor = torch.tensor([doc2vec.infer_vector(each["html"].split(" ")) for each in history])
     tensor = torch.reshape(tensor,(1,1,20,300))
-    
-    # get model response + train model
-    if not Terminate:
-        model_resp = agent.action_train(tensor)
-        return model_resp
-    else:
-        agent.action_train(tensor, Terminate=True)
+    # only need to call the model one time
+    # hx and cx should passed to the model() call, from the previous call
+    # initially hx and cx (global variables) should be set using torch.zeros(1, 256)
+
+    for count in range(0,20):
+        temp=tensor[:,:,count:count+1,0:256]
+        temp=torch.reshape(temp, (1,256))
+        res = model((tensor, (temp, temp)))
+
+    # doc2vec.save("./{}.bin".format(time.time()))
+    # idx = res[1].argmax().item() # gives the largest vector
+
+    # capture hx and cx from the model() response and store them for the next call
+
+    max_list=torch.topk(res[1],len(disabled)+1).indices.tolist()
+    # len(disabled) + 1 in case all of the k selected are disabled categories
+    print("harpo_api finished")
+    return choose_max_on_constraint(max_list[0],disabled)
+
+def harpo_api(history):
+    print("harpo_api reached")
+    disabled=load_disabled("../param/category_data.txt")
+    doc2vec = latest_doc2vec()
+    tensor = torch.tensor([doc2vec.infer_vector(each["html"].split(" ")) for each in history])
+    tensor = torch.reshape(tensor,(1,1,20,300))
+   
+    global hx_prev
+    global cx_prev
+
+    # get model response
+    res = model((tensor, (hx_prev, cx_prev)))
+
+    # capture hx and cx from res and store them for the next call
+    hx_prev = res[2]
+    cx_prev = res[3]
+
+    # get the top vectors (the number of disabled categories + 1)
+    # in case all of the top vectors are disabled
+    max_list=torch.topk(res[1],len(disabled)+1).indices.tolist()
+
+    print("model returned, category selected")
+
+    # should I use max_list or max_list[0]
+    print(max_list)
+
+    return choose_max_on_constraint(max_list[0], disabled)
 
 def maintain_twenty():
     print("maintain_twenty reached")
@@ -129,14 +127,11 @@ def maintain_twenty():
 
 def obfuscation_url():
     print("obfuscation_url reached")
-    history = maintain_twenty()
-    url_cat, obfuscation_url=harpo_api(history, False)
+    obfuscation_url=harpo_api(maintain_twenty())
     ret=[]
     ret.append(obfuscation_url)
-    url_uuid = uuid.uuid4().hex
-    model_rewards[url_uuid] = None
     print("obfuscation_url finished")
-    return url_uuid, url_cat, ret
+    return {"obfuscation url": ret}
 
 def save_html2text(data):
     print("save_html reached")
@@ -149,110 +144,24 @@ def save_html2text(data):
         json.dump(page, json_file)
     print("save_html finished")
 
-def calc_reward(new_interest_segments):
-    reward = 0
+def load_disabled(file):
+    print("load_disabled reached")
+    storage=[]
+    with open(file, "r") as json_file:
+        pref=json.loads(json_file.read())
+    for i in pref:
+        if pref[i]["checked"]==False:
+            storage.append(pref[i]["name"])
+    print("load_disabled finished")
+    return storage
 
-    # find interest segments that are new
-    for segment in new_interest_segments:
-        if segment not in prev_interest_segments:
-            reward += 1
-    
-    # find interest segments that were removed
-    for segment in prev_interest_segments:
-        if segment not in new_interest_segments:
-            reward += 1
-
-    return reward
-
-def maintain_int_seg_history(data):
-    uuid = data['uuid']
-    interest_segments = data['data']
-
-    reward = calc_reward(interest_segments)
-    prev_interest_segments = interest_segments
-
-    model_rewards[uuid] = reward
-
-    if len(model_rewards) >= NUM_REWARDS:
-        top_rewards_comp = True
-
-        index = 0
-
-        for uuid, reward in model_rewards.items():
-            if index >= NUM_REWARDS:
-                break
-
-            if reward == None:
-                top_rewards_comp = False
-                break
-            else:
-                pass
-
-            index += 1
-
-        if top_rewards_comp:
-            rewards = [reward for uuid, reward in model_rewards]
-
-            history = maintain_twenty()
-            harpo_api(history, True)
-
-            agent.update(rewards, GAMMA, T)
-            agent.clear_actions()
-
-            index = 0
-
-            for uuid, reward in model_rewards.items():
-                if index >= NUM_REWARDS:
-                    break
-
-                model_rewards.pop(uuid)
-
-                index += 1
-
-    return {'status': 'interest segment update recorded successfully'}
-
-# code below is only for testing purposes
-
-def maintain_int_seg_history_test(uuid, reward):
-    model_rewards[uuid] = reward
-
-    if len(model_rewards) >= NUM_REWARDS:
-        print("Threshold reached. Retraining model!")
-
-        top_rewards_comp = True
-
-        index = 0
-
-        for uuid, reward in model_rewards.items():
-            if index >= NUM_REWARDS:
-                break
-
-            if reward == None:
-                top_rewards_comp = False
-                break
-            else:
-                pass
-
-            index += 1
-
-        if top_rewards_comp:
-            print("GOT TO RETRAINING STEP")
-            rewards = [reward for uuid, reward in model_rewards.items()]
-
-            history = maintain_twenty()
-            harpo_api(history, True)
-
-            agent.update(rewards, GAMMA, T)
-            agent.clear_actions()
-
-            index = 0
-
-            for uuid, reward in model_rewards.items():
-                if index >= NUM_REWARDS:
-                    break
-
-                model_rewards.pop(uuid)
-
-                index += 1
-
-    return {'status': 'interest segment update recorded successfully'}
+def choose_max_on_constraint(max_list, disabled):
+    print("choose_max_on_constraint reached")
+    for i in max_list:
+        cat = obfuscation_url_cats[i]
+        if cat in disabled:
+            pass
+        else:
+            # return a randomly chosen obfuscation url from the most relevant category (that is not disabled)
+            return choice(list(obfuscation_url_set[cat].keys()))
+    print("choose_max_on_constraint finished")

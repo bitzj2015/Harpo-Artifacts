@@ -8,8 +8,6 @@ class RLAgent {
     connect() {
         this.socket = new WebSocket(this.socket_url);
 
-        console.log("Connected to RLAgent successfully.");
-
         this.socket.addEventListener('message', (event) => {
             var parsed_data = JSON.parse(event.data);
 
@@ -23,7 +21,6 @@ class RLAgent {
         });
 
         this.socket.addEventListener('error', (event) => {
-            console.log(`Error connecting to RLAgent, attempting to reconnect...`)
             setTimeout(() => {
                 this.connect();
             }, this.reconnect_timeout);
@@ -45,11 +42,7 @@ class RLAgent {
 
     sendCategoryUpdate(update) {
         this.socket.send(JSON.stringify(update));
-    }
-
-    sendIntSegUpdate(data, uuid) {
-        this.socket.send(JSON.stringify({type: "interest_segment_update", uuid: uuid, data: data}));
-    }
+    } 
 
     addMessageListener(messageType, callback) {
         this.messageListeners[messageType] = callback;

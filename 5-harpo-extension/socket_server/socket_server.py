@@ -13,6 +13,7 @@ port = 8765
 
 category_dict = create_category_data_file()
 
+
 def category_request_handler(message):
     tab_id = message['id']
     return {"type": "category_reply", "id": tab_id, "categories": category_dict}
@@ -39,8 +40,6 @@ def category_update_handler(message):
 # set a 'type' attribute for every message_response        
 async def handler(websocket, path):
     async for message in websocket:
-        message_response = {"status": "success"}
-
         try:
             deserialized_message = json.loads(message)
             print("message received", deserialized_message)
@@ -52,8 +51,7 @@ async def handler(websocket, path):
         
         elif deserialized_message['type'] == "url_request":
             try:
-                urls, url_uuid = app.obfuscation_url()
-                message_response = {"obfuscation url": urls, "uuid": url_uuid}
+                message_response = app.obfuscation_url()
                 print("obfuscation url generated: ", message_response)
                 message_response['type'] = "url_request"
             except Exception as e:
@@ -64,9 +62,6 @@ async def handler(websocket, path):
 
         elif deserialized_message['type'] == "category_update":
             message_response = category_update_handler(deserialized_message)
-
-        elif deserialized_message['type'] == "interest_segment_update":
-            message_response = app.maintain_int_seg_history(deserialized_message)
           
         elif deserialized_message['type'] == "test":
             message_response = "response"
